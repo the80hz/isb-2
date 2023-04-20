@@ -71,71 +71,38 @@ double runs_test(const std::bitset<128>& sequence) {
     return p_value;
 }
 
-double incomplete_gamma_integral(double s, double x) {
-    auto integrand = [s](double t) {
-        return std::pow(t, s - 1) * std::exp(-t);
-    };
-
-    const int n = 50;
-    const double a = 0;
-    const double b = x;
-    const double h = (b - a) / (2 * n);
-
-    double result = 0.0;
-    double x_i = a + h;
-
-    for (int i = 1; i <= n; ++i) {
-        result += integrand(x_i - h / 2);
-        result += 2 * integrand(x_i);
-        x_i += h;
-    }
-
-    result += integrand(b - h / 2);
-    result *= h / 3;
-
-    return result;
-}
-
-double chi_squared_cdf(double x, double k) {
-    return incomplete_gamma_integral(k / 2.0, x / 2.0) / std::tgamma(k / 2.0);
-}
-
 // c) Тест на самую длинную последовательность единиц в блоке
 double longest_run_of_ones_test(const std::bitset<128>& sequence) {
-    std::vector<size_t> frequencies(6, 0);
-    size_t current_run = 0;
+    int k = 5;
+    int n = sequence.size();
+    int m = 8;
+
+    std::vector<int> counts(6, 0);
+    int consecutive_ones = 0;
 
     for (size_t i = 0; i < sequence.size(); ++i) {
         if (sequence[i]) {
-            ++current_run;
-        } else {
-            if (current_run > 0) {
-                if (current_run <= 6) {
-                    ++frequencies[current_run - 1];
-                } else {
-                    ++frequencies[5];
-                }
-                current_run = 0;
+            consecutive_ones++;
+            if (i == sequence.size() - 1 && consecutive_ones >= 1 && consecutive_ones <= 5) {
+                counts[consecutive_ones - 1]++;
             }
-        }
-    }
-
-    if (current_run > 0) {
-        if (current_run <= 6) {
-            ++frequencies[current_run - 1];
         } else {
-            ++frequencies[5];
+            if (consecutive_ones >= 1 && consecutive_ones <= 5) {
+                counts[consecutive_ones - 1]++;
+            }
+            consecutive_ones = 0;
         }
     }
 
-    double chi_squared = 0.0;
-    std::vector<double> probabilities = {0.2148, 0.3672, 0.2305, 0.1250, 0.0463, 0.0162};
-    for (size_t i = 0; i < 6; ++i) {
-        double diff = static_cast<double>(frequencies[i]) - probabilities[i] * sequence.size();
-        chi_squared += (diff * diff) / (probabilities[i] * sequence.size());
+    std::vector<double> pi = {0.2148, 0.3672, 0.2305, 0.1250, 0.0625};
+    double chi_square = 0.0;
+
+    for (int i = 0; i < k; ++i) {
+        chi_square += std::pow((counts[i] - n * pi[i] / m), 2) / (n * pi[i] / m);
     }
 
-    double p_value = 1.0 - chi_squared_cdf(chi_squared, 5);
+    double p_value = std::exp(-chi_square / 2);
+
     return p_value;
 }
 
